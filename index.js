@@ -26,7 +26,9 @@ const DispatchRoute = require("./routes/Dispatch.routes");
 const PurchaseOrderRoutes = require("./routes/PurchaseOrder");
 const ResourceRoutes = require("./routes/resources");
 const DeviceDataRoutes = require('./routes/deviceData.routes');
+const MachineDataRoutes = require('./routes/machineData.routes');
 const {ScrapRoutes} = require("./routes/Scrap.routes")
+const { startAutoUpdate, getCurrentMachineData } = require('./controllers/machineData.controller');
 
 const app = express();
 const server = http.createServer(app);
@@ -90,6 +92,14 @@ io.on('connection', (socket) => {
   socket.on("joinDashboard", () => {
     socket.join("dashboard");
     console.log("Frontend joined room: dashboard");
+  });
+
+  // Machine data room for real-time updates
+  socket.on("joinMachineData", () => {
+    socket.join("machineData");
+    console.log("Client joined room: machineData");
+    // Send current data immediately when client joins
+    socket.emit("machineDataUpdate", getCurrentMachineData());
   });
 
   // Handle deviceData from NodeMCU
@@ -184,6 +194,7 @@ app.use("/api/agent", agentRoutes);
 app.use("/api/role", userRoleRoutes);
 app.use("/api/bom", bomRoutes);
 app.use('/api/devicedata', DeviceDataRoutes);
+app.use('/api/machine', MachineDataRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/proforma-invoice", proformaInvoiceRoutes);
 app.use("/api/invoice", invoiceRoutes);
@@ -202,4 +213,6 @@ app.use(globalErrorHandler);
 server.listen(process.env.PORT, '0.0.0.0', () => {
   console.log(`Server is listening on Port: ${process.env.PORT}`);
   connectDB();
+  // Start auto-update for machine data
+  startAutoUpdate(io);
 });
