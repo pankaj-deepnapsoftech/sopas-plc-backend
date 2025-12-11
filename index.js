@@ -98,7 +98,7 @@ io.on('connection', (socket) => {
   socket.on("joinMachineData", () => {
     socket.join("machineData");
     console.log("Client joined room: machineData");
-    // Send current data immediately when client joins
+    // Send current data immediately when client joins (all machines)
     socket.emit("machineDataUpdate", getCurrentMachineData());
   });
 

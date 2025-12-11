@@ -1,57 +1,60 @@
 const { TryCatch } = require("../utils/error");
+const MachineStatus = require("../models/machineStatus");
 
-// Store current machine data state
-let currentMachineData = {
-  device_id: "MACHINE-01",
-  count: 120,
-  design: "Design-A",
-  efficiency: 87.5,
-  error1: 2,
-  error2: 0,
-  status: "running",
-  shift: "A",
-  timestamp: new Date().toISOString()
-};
+// ---------- Pools & helpers ----------
+const devicePool = ["MACHINE-01", "MACHINE-02", "MACHINE-03", "MACHINE-04", "MACHINE-05"];
+const designPool = ["Design-A", "Design-B", "Design-C", "Design-D", "Design-E"];
+const statusPool = ["running", "idle", "maintenance", "stopped"];
+const shiftPool = ["A", "B", "C"];
 
-// Function to generate random variations in data
-function generateRandomData() {
-  // Random count variation (100-150)
-  currentMachineData.count = Math.floor(Math.random() * 51) + 100;
-  
-  // Random efficiency variation (80-95)
-  currentMachineData.efficiency = parseFloat((Math.random() * 15 + 80).toFixed(1));
-  
-  // Random error1 (0-5)
-  currentMachineData.error1 = Math.floor(Math.random() * 6);
-  
-  // Random error2 (0-3)
-  currentMachineData.error2 = Math.floor(Math.random() * 4);
-  
-  // Random status
-  const statuses = ["running", "idle", "maintenance", "stopped"];
-  currentMachineData.status = statuses[Math.floor(Math.random() * statuses.length)];
-  
-  // Random shift
-  const shifts = ["A", "B", "C"];
-  currentMachineData.shift = shifts[Math.floor(Math.random() * shifts.length)];
-  
-  // Random design
-  const designs = ["Design-A", "Design-B", "Design-C", "Design-D"];
-  currentMachineData.design = designs[Math.floor(Math.random() * designs.length)];
-  
-  // Update timestamp
-  currentMachineData.timestamp = new Date().toISOString();
-  
-  return { ...currentMachineData };
+const randomBetween = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+const randomFloat = (min, max, digits = 1) =>
+  parseFloat((Math.random() * (max - min) + min).toFixed(digits));
+const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+// Store current machine data state for all devices
+let currentMachines = devicePool.map((id) => buildMachinePayload(id));
+
+// Build a single payload
+function buildMachinePayload(deviceId) {
+  return {
+    device_id: deviceId,
+    count: randomBetween(80, 160),
+    design: pick(designPool),
+    efficiency: randomFloat(75, 98),
+    error1: randomBetween(0, 5),
+    error2: randomBetween(0, 3),
+    status: pick(statusPool),
+    shift: pick(shiftPool),
+    timestamp: new Date().toISOString(),
+  };
+}
+
+// Function to generate random variations for all machines
+function generateRandomDataForAll() {
+  currentMachines = currentMachines.map((machine) => ({
+    ...machine,
+    count: randomBetween(80, 160),
+    design: pick(designPool),
+    efficiency: randomFloat(75, 98),
+    error1: randomBetween(0, 5),
+    error2: randomBetween(0, 3),
+    status: pick(statusPool),
+    shift: pick(shiftPool),
+    timestamp: new Date().toISOString(),
+  }));
+
+  return currentMachines.map((m) => ({ ...m }));
 }
 
 // API endpoint to get current machine data
 exports.getMachineData = TryCatch(async (req, res) => {
-  const data = generateRandomData();
-  
+  const data = generateRandomDataForAll();
+
   return res.status(200).json({
     success: true,
-    data: data
+    data,
+    count: data.length,
   });
 });
 
@@ -65,15 +68,29 @@ exports.startAutoUpdate = (io) => {
   }
   
   // Emit updates every 3 seconds
-  updateInterval = setInterval(() => {
-    const updatedData = generateRandomData();
-    
+  updateInterval = setInterval(async () => {
+    const updatedData = generateRandomDataForAll();
+
+    // Persist to DB so frontend can query from database if needed
+    const bulkOps = updatedData.map((doc) => ({
+      updateOne: {
+        filter: { device_id: doc.device_id },
+        update: { $set: doc },
+        upsert: true,
+      },
+    }));
+    try {
+      await MachineStatus.bulkWrite(bulkOps);
+    } catch (err) {
+      console.error("Failed to persist machine data", err);
+    }
+
     // Emit to clients in the "machineData" room via Socket.IO
     if (io) {
-      io.to('machineData').emit('machineDataUpdate', updatedData);
+      io.to("machineData").emit("machineDataUpdate", updatedData);
     }
-    
-    console.log('Machine data updated:', updatedData);
+
+    console.log("Machine data updated:", updatedData);
   }, 3000); // 3 seconds = 3000 milliseconds
   
   console.log('✅ Auto-update started: Machine data will update every 3 seconds');
@@ -89,6 +106,32 @@ exports.stopAutoUpdate = () => {
 
 // Export function to get current data without generating new
 exports.getCurrentMachineData = () => {
-  return { ...currentMachineData };
+  return currentMachines.map((m) => ({ ...m }));
 };
+
+exports.seedMachineStatuses = TryCatch(async (req, res) => {
+  const payload = devicePool.map((id) => buildMachinePayload(id));
+
+  const bulkOps = payload.map((doc) => ({
+    updateOne: {
+      filter: { device_id: doc.device_id },
+      update: { $set: doc },
+      upsert: true,
+    },
+  }));
+
+  await MachineStatus.bulkWrite(bulkOps);
+
+  // Broadcast seeded data to connected clients (optional live preview)
+  if (global.io) {
+    global.io.to("machineData").emit("machineDataSeed", payload);
+  }
+
+  return res.status(200).json({
+    success: true,
+    message: "Seeded machine statuses for demo",
+    count: payload.length,
+    data: payload,
+  });
+});
 
