@@ -2,7 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const socketIo = require('socket.io');
 const http = require('http');
-const {DeviceData} = require('./models/deviceData'); // Import DeviceData model
+const { DeviceData } = require('./models/deviceData'); // Import DeviceData model
 
 const { globalErrorHandler } = require("./middlewares/error");
 const { connectDB } = require("./utils/connectDB");
@@ -27,7 +27,7 @@ const PurchaseOrderRoutes = require("./routes/PurchaseOrder");
 const ResourceRoutes = require("./routes/resources");
 const DeviceDataRoutes = require('./routes/deviceData.routes');
 const MachineDataRoutes = require('./routes/machineData.routes');
-const {ScrapRoutes} = require("./routes/Scrap.routes")
+const { ScrapRoutes } = require("./routes/Scrap.routes")
 const { startAutoUpdate, getCurrentMachineData } = require('./controllers/machineData.controller');
 
 const app = express();
@@ -40,6 +40,7 @@ const io = socketIo(server, {
       "http://localhost:5173",
       "https://inventory.deepmart.shop",
       "https://sopasb2b.deepmart.shop",
+      "https://kontrolix.rtpas.in",
     ],
     methods: ["GET", "POST"],
     allowedHeaders: ["Authorization", "Content-Type"],
@@ -57,7 +58,8 @@ const allowedOrigins = [
   "http://localhost:5173",
   "https://inventory.deepmart.shop",
   "https://sopasb2b.deepmart.shop",
-  "https://rtpas.deepnapsoftech.com"
+  "https://rtpas.deepnapsoftech.com",
+  "https://kontrolix.rtpas.in",
 ];
 
 const corsOptions = {
@@ -118,7 +120,7 @@ io.on('connection', (socket) => {
         breakcount
       } = data;
 
-      console.log("Dta from node mcu : ",data)
+      console.log("Dta from node mcu : ", data)
 
       const query = {};
       // Fetch current document to get breakCount
@@ -127,7 +129,7 @@ io.on('connection', (socket) => {
       // Increment breakCount if ldrRaw == 1
       // if (ldrRaw === 1) {
       //   breakCount++;
-        // console.log(`ldrRaw = 1, breakCount incremented to ${breakCount}`);
+      // console.log(`ldrRaw = 1, breakCount incremented to ${breakCount}`);
       // }
 
       const updatedOrCreated = await DeviceData.findOneAndUpdate(

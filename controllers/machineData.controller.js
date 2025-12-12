@@ -12,19 +12,32 @@ const randomFloat = (min, max, digits = 1) =>
   parseFloat((Math.random() * (max - min) + min).toFixed(digits));
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
-// Store current machine data state for all devices
-let currentMachines = devicePool.map((id) => buildMachinePayload(id));
+// Errors should only increase: +1 every 5 minutes (no decreases)
+const ERROR_INCREMENT_MS = 10 * 60 * 1000;
+let lastErrorIncrementAt = Date.now();
 
-// Build a single payload
-function buildMachinePayload(deviceId) {
+// Fixed status map: 1-3 running, 4 maintenance, 5 stopped
+const getStatusForIndex = (idx) => {
+  if (idx < 3) return "running";       // machines 1,2,3
+  if (idx === 3) return "stopped"; // machine 4
+  return "stopped";                    // machine 5
+};
+
+// Store current machine data state for all devices
+let currentMachines = devicePool.map((id, idx) =>
+  buildMachinePayload(id, getStatusForIndex(idx))
+);
+
+// Build a single payload 
+function buildMachinePayload(deviceId, status) {
   return {
     device_id: deviceId,
     count: randomBetween(80, 160),
     design: pick(designPool),
-    efficiency: randomFloat(75, 98),
+    efficiency: randomFloat(85.4, 92.4),
     error1: randomBetween(0, 5),
     error2: randomBetween(0, 3),
-    status: pick(statusPool),
+    status: status || pick(statusPool),
     shift: pick(shiftPool),
     timestamp: new Date().toISOString(),
   };
@@ -32,17 +45,31 @@ function buildMachinePayload(deviceId) {
 
 // Function to generate random variations for all machines
 function generateRandomDataForAll() {
-  currentMachines = currentMachines.map((machine) => ({
-    ...machine,
-    count: randomBetween(80, 160),
-    design: pick(designPool),
-    efficiency: randomFloat(75, 98),
-    error1: randomBetween(0, 5),
-    error2: randomBetween(0, 3),
-    status: pick(statusPool),
-    shift: pick(shiftPool),
-    timestamp: new Date().toISOString(),
-  }));
+  const now = Date.now();
+  const shouldIncrementErrors = now - lastErrorIncrementAt >= ERROR_INCREMENT_MS;
+  if (shouldIncrementErrors) {
+    lastErrorIncrementAt = now;
+  }
+
+  currentMachines = currentMachines.map((machine, idx) => {
+    // Machines 4 & 5 stay fixed (no updates)
+    if (idx >= 3) {
+      return { ...machine };
+    }
+
+    return {
+      ...machine,
+      // Production only increases per cycle
+      count: machine.count + randomBetween(1, 20),
+      design: pick(designPool),
+      efficiency: randomFloat(85.4, 92.4),
+      error1: machine.error1 + (shouldIncrementErrors ? 1 : 0),
+      error2: machine.error2, // no decrease, no randomization
+      status: getStatusForIndex(idx),
+      shift: pick(shiftPool),
+      timestamp: new Date().toISOString(),
+    };
+  });
 
   return currentMachines.map((m) => ({ ...m }));
 }
@@ -110,7 +137,9 @@ exports.getCurrentMachineData = () => {
 };
 
 exports.seedMachineStatuses = TryCatch(async (req, res) => {
-  const payload = devicePool.map((id) => buildMachinePayload(id));
+  const payload = devicePool.map((id, idx) =>
+    buildMachinePayload(id, getStatusForIndex(idx))
+  );
 
   const bulkOps = payload.map((doc) => ({
     updateOne: {
