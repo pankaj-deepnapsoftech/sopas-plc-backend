@@ -27,6 +27,7 @@ const PurchaseOrderRoutes = require("./routes/PurchaseOrder");
 const ResourceRoutes = require("./routes/resources");
 const DeviceDataRoutes = require('./routes/deviceData.routes');
 const MachineDataRoutes = require('./routes/machineData.routes');
+const MachineTelemetryRoutes = require('./routes/machineTelemetry.routes');
 const { ScrapRoutes } = require("./routes/Scrap.routes")
 const { startAutoUpdate, getCurrentMachineData } = require('./controllers/machineData.controller');
 
@@ -198,6 +199,7 @@ app.use("/api/bom", bomRoutes);
 app.use('/api/devicedata', DeviceDataRoutes);
 app.use('/api/machine', MachineDataRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/machine-telemetry", MachineTelemetryRoutes);
 app.use("/api/proforma-invoice", proformaInvoiceRoutes);
 app.use("/api/invoice", invoiceRoutes);
 app.use("/api/production-process", productionProcessRoutes);

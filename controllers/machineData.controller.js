@@ -16,7 +16,7 @@ const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 const ERROR_INCREMENT_MS = 10 * 60 * 1000;
 let lastErrorIncrementAt = Date.now();
 
-// Fixed status map: 1-3 running, 4 maintenance, 5 stopped
+// Fixed status map: 1-3 running, 4 maintenance, 5 stopped      
 const getStatusForIndex = (idx) => {
   if (idx < 3) return "running";       // machines 1,2,3
   if (idx === 3) return "stopped"; // machine 4
@@ -93,7 +93,7 @@ exports.startAutoUpdate = (io) => {
   if (updateInterval) {
     clearInterval(updateInterval);
   }
-  
+
   // Emit updates every 3 seconds
   updateInterval = setInterval(async () => {
     const updatedData = generateRandomDataForAll();
@@ -119,7 +119,7 @@ exports.startAutoUpdate = (io) => {
 
     console.log("Machine data updated:", updatedData);
   }, 3000); // 3 seconds = 3000 milliseconds
-  
+
   console.log('✅ Auto-update started: Machine data will update every 3 seconds');
 };
 

@@ -20,15 +20,15 @@ const machineStatusSchema = new Schema(
 // PLC DM words payload (used by /api/dashboard/plc-machine-data)
 const plcMachineSchema = new Schema(
   {
-    device_id: { type: String, default: "UNKNOWN" },
-    timestamp: { type: Date, required: true }, // derived from payload `timestamp` or `time`
-    dm_words: { type: [Number] }, // legacy support
-    // New payload fields
-    count: { type: Number },
-    percent: { type: Number },
-    countdown: { type: Number },
-    raw: { type: [Number] },
-  },
+      device_id: { type: String, default: "UNKNOWN" },
+      timestamp: { type: Date, required: true }, // derived from payload `timestamp` or `time`
+      dm_words: { type: [Number] }, // legacy support
+      // New payload fields
+      count: { type: Number },
+      percent: { type: Number },
+      countdown: { type: Number },
+      raw: { type: [Number] },
+  },  
   {
     timestamps: true,
   }
